@@ -1,56 +1,49 @@
-# Snowflake Sales & Orders Analytics — Learning Portfolio
+# Snowflake Sales & Orders Analytics
 
-**Snowflake SQL · CSV ingestion · RAW/CLEAN transformations · analytical SQL · Streams and Tasks**
+**Snowflake SQL | CSV | Data Cleaning | Analytics | Streams & Tasks**
 
-An independent learning portfolio documenting Snowflake SQL exercises on a retail sales dataset. The original saved project is a **development worksheet**, not one complete runnable pipeline. To avoid accidental account changes, its public archive is **fully commented out**; a separate safe setup template and read-only SQL examples are provided.
+I used a sample retail sales dataset to practice loading, cleaning, and analyzing data in Snowflake. The project began as a SQL worksheet where I tried different features and queries while learning.
 
-## Scope and what was practiced
+## What I worked on
 
-- A 25-column sales CSV loaded using Snowflake internal stages, an ISO-8859-1 CSV file format, and `COPY INTO`.
-- `RAW_SALES` to `CLEAN_SALES` transformations using `TRIM`, `UPPER`, `COALESCE`, date handling, and `CASE` business rules.
-- SQL joins, grouping, window functions, ranking and country/region analytics.
-- A separately practiced JSON/VARIANT/PARSE_JSON/LATERAL FLATTEN exercise. **This JSON example was not part of the main CSV ingestion workflow.**
-- A separately defined `SALES_STREAM` and **warehouse-backed** scheduled Task to append new order IDs to an incremental target. The previously reviewed private Task History recorded **one successful scheduled INSERT of 2 rows on 1 September 2026**. That private account export is intentionally excluded.
+- Loaded a sales CSV into a RAW table using an internal stage, file format, and `COPY INTO`.
+- Created CLEAN-table transformations using `TRIM`, `UPPER`, `COALESCE`, and `CASE`.
+- Wrote queries using joins, aggregations, window functions, and date functions.
+- Practiced Streams and a scheduled Task to insert new order IDs into a separate table.
+- Explored JSON data using `PARSE_JSON`, `VARIANT`, and `FLATTEN` in a separate exercise.
 
-## Repository layout
-
-```text
-README.md                                    Project summary and usage limitations
-.gitignore                                  Excludes credentials, private exports, source CSVs
-sql/sales_project_history_NON_EXECUTABLE.sql  Commented archive of earlier SQL experiments
-sql/01_setup_example_NOT_RETESTED.sql          Fresh sandbox schema/stage example; not independently tested
-sql/02_read_only_analysis_examples.sql        Read-only analysis examples; not independently tested here
-data/README.md                              Dataset provenance and privacy notes
-docs/SAFETY_AND_EVIDENCE.md                 Important limitations and audit findings
-docs/PUBLISH_CHECKLIST.md                   Final publication steps
-```
-
-## How to use this repository
-
-1. Review `docs/SAFETY_AND_EVIDENCE.md` and `data/README.md`.
-2. Create a **dedicated trial/sandbox Snowflake database**, not a production database.
-3. Review the setup example and create an internal stage, CSV file format, and RAW table. The example is not a tested one-command installer.
-4. Obtain the original CSV yourself and check its permitted usage. **No source CSV is committed.**
-5. Stage and load it manually, first using `VALIDATION_MODE = RETURN_ERRORS`. Validate row counts and the CSV header/type mapping before further work.
-6. Run the read-only examples only after the data is loaded. Refer to the fully commented historical worksheet for other learning experiments; **do not uncomment/run it wholesale**.
-
-## Architecture (conceptual)
+## Data flow
 
 ```text
-External retail sample CSV -> Snowflake internal stage -> RAW_SALES
-                                                     -> SQL transformations -> CLEAN_SALES
-                                                                          -> analytics
-Separate exercise: CLEAN_SALES -> SALES_STREAM -> scheduled Task -> INCREMENTAL_CLEAN_SALES
-Separate exercise: sample JSON -> PARSE_JSON / VARIANT -> LATERAL FLATTEN
+Retail sales CSV
+       |
+Snowflake internal stage
+       |
+     COPY INTO
+       |
+    RAW_SALES
+       |
+ SQL transformations
+       |
+   CLEAN_SALES
+       |
+Analytics queries
 ```
 
-## Important limitations
+I practiced Stream/Task-based incremental loading and JSON analysis separately. They are not connected into one automated workflow in this repository.
 
-- This is **not** a production deployment, end-to-end orchestrated repository, or fully retested pipeline.
-- The archived worksheet includes exploratory DDL, administrative grant commands, `CREATE OR REPLACE`, updates/deletes, active Task resume, and warehouse suspend/resume; all lines are commented so casual execution cannot perform those actions.
-- The original source table has line-item/order-number semantics: do not treat `ORDERNUMBER` as a guaranteed unique key without investigating the underlying dataset.
-- `CLEAN_SALES` excludes rows with NULL `STATE` in one historical transformation. This is a historical business rule, not a universally justified cleaning rule.
-- Several worksheet SQL fragments are partial, contain errors, or depend on tables created in earlier experimentation. The two clean example scripts are **illustrations**, not evidence of a fresh complete execution.
-- No customer data, private query history, real Snowflake account identifiers, or credentials are intentionally included.
+## Project files
 
-**Portfolio honesty:** The documented successful scheduled Task was a 2-row warehouse-backed INSERT test, not a proof of large-scale production CDC or fully automated incremental reconciliation.
+- `sql/sales_project_history_NON_EXECUTABLE.sql` — original SQL exercises, preserved as comments
+- `sql/01_setup_example_NOT_RETESTED.sql` — example sandbox setup
+- `sql/02_read_only_analysis_examples.sql` — sample analysis queries
+- `data/README.md` — notes on the source dataset
+- `docs/` — technical notes and limitations
+
+## Getting started
+
+Read [the dataset notes](data/README.md) and use a separate Snowflake test database. The original retail CSV is not included, so you will need a permitted copy with the expected columns.
+
+The historical worksheet is **for reading, not for running as one script**. The separate example SQL files have not yet been retested together in a fresh Snowflake environment.
+
+This is a learning project based on hands-on SQL practice, not a production pipeline. See [technical notes](docs/SAFETY_AND_EVIDENCE.md) for details.
