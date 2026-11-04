@@ -1,0 +1,628 @@
+-- HISTORICAL, NON-EXECUTABLE TRANSCRIPT (ALL LINES COMMENTED OUT)
+-- For reading only. Not safe or intended to be executed wholesale.
+-- Identifying demonstration name replaced and unrelated Wing cleanup commands omitted.
+-- Original source remains intact in the user's private original ZIP.
+
+-- -- Fixed INSERT INTO syntax by removing table alias not supported in Snowflake INSERT statements
+-- -- Co-authored with CoCo
+-- ---SHOW DATABASES;
+--
+-- USE ROLE SYSADMIN;
+-- GRANT OWNERSHIP ON SCHEMA SALES_PROJECT.PUBLIC TO ROLE SYSADMIN REVOKE CURRENT GRANTS;
+--
+-- USE WAREHOUSE COMPUTE_WH;
+--
+-- CREATE OR REPLACE DATABASE SALES_PROJECT;
+-- USE DATABASE SALES_PROJECT;
+--
+-- USE SCHEMA PUBLIC;
+--
+-- CREATE OR REPLACE TABLE raw_sales (
+--     ORDERNUMBER NUMBER,
+--     QUANTITYORDERED NUMBER,
+--     PRICEEACH FLOAT,
+--     ORDERLINENUMBER NUMBER,
+--     SALES FLOAT,
+--     ORDERDATE STRING,
+--     STATUS STRING, 
+--     QTR_ID NUMBER,
+--     MONTH_ID NUMBER,
+--     YEAR_ID NUMBER,
+--     PRODUCTLINE STRING,
+--     MSRP NUMBER,
+--     PRODUCTCODE STRING,
+--     CUSTOMERNAME STRING,
+--     PHONE STRING,
+--     ADDRESSLINE1 STRING,
+--     ADDRESSLINE2 STRING,
+--     CITY STRING,
+--     STATE STRING,
+--     POSTALCODE STRING,
+--     COUNTRY STRING,
+--     TERRITORY STRING,
+--     CONTACTLASTNAME STRING,
+--     CONTACTFIRSTNAME STRING,
+--     DEALSIZE STRING
+-- );
+--
+-- ---SELECT * FROM raw_sales;
+--
+-- CREATE OR REPLACE STAGE sales_stage;
+-- ---PUT COMMAND CAN ONLY BE USED IN SNOWSQL CLI AND NOT SNOWSIGHT SQL WORKSHEET
+-- ---MANUALLY LOAD FILE FROM LOCAL STORAGE TO THE STAGE
+--
+-- ---LIST @sales_stage;
+--
+--
+-- CREATE OR REPLACE FILE FORMAT sales_file_format
+-- TYPE= 'CSV'
+-- FIELD_DELIMITER= ','
+-- SKIP_HEADER= 1
+-- ENCODING = 'ISO8859-1'
+-- FIELD_OPTIONALLY_ENCLOSED_BY= '"';
+--
+--
+-- ---CHECK IF THE CORRECT FILE FORMAT IS USED IN COPY_INTO STATEMENT
+--
+-- ---SELECT $1
+-- ---FROM @sales_stage/sales_data_sample.csv;
+--
+-- ---SELECT
+-- ---$1, $2, $3, $4, $5,
+-- ---$6, $7, $8, $9, $10,
+-- ---$11, $12, $13, $14, $15,
+-- ---$16, $17, $18, $19, $20,
+-- ---$21, $22, $23, $24, $25
+-- ---FROM @sales_stage/sales_data_sample.csv
+-- ---(
+-- ---    FILE_FORMAT => 'sales_file_format'
+-- ---);
+--
+-- ---BUKK LOADING DATA USING COPY_INTO STATEMENT
+-- COPY INTO raw_sales
+-- FROM @sales_stage
+-- FILES= ('sales_data_sample.csv')
+-- FILE_FORMAT= (FORMAT_NAME= 'sales_file_format')
+-- ON_ERROR= 'skip_file';
+--
+-- ---SELECT * FROM raw_sales;
+-- ---SELECT COUNT(*) FROM raw_sales;
+-- ---DESCRIBE TABLE raw_sales;
+--
+-- ---SELECT COUNT(*)
+-- ---FROM raw_sales
+-- ---WHERE STATE IS NULL;
+--
+--
+-- ---CREATE A NEW CLEAN TABLE AS A RESULT OF THE QUERY FROM OLD TABLE
+-- CREATE OR REPLACE TABLE clean_sales AS
+-- SELECT 
+--     ORDERNUMBER,
+--     UPPER(TRIM(CUSTOMERNAME)) AS CLEAN_CUSTOMER_NAME,
+--     UPPER(TRIM(COUNTRY)) AS CLEAN_COUNTRY,
+--     COALESCE(SALES,0) AS CLEAN_SALES,
+--     COALESCE(QUANTITYORDERED,0) AS CLEAN_QUANTITYORDERED,
+--     UPPER(TRIM(STATUS)) AS CLEAN_STATUS,
+--     ORDERDATE AS CLEAN_ORDER_DATE
+-- FROM raw_sales
+-- WHERE STATE IS NOT NULL;
+--
+--
+-- SELECT * FROM RAW_sales;
+-- SELECT * FROM clean_sales;
+--
+--
+-- ---SELECT 
+-- ---COUNT_IF(SALES IS NULL) AS NULL_COUNT
+-- ---FROM raw_sales;
+--
+-- ---SELECT DISTINCT COUNTRY
+-- ---FROM clean_sales;
+--
+-- ---ADD EMPTY COLUMNS TO CLEAN TABLE AND FILL THEM BY REFERENCING TO RAW TABLE
+-- ALTER TABLE IF EXISTS clean_sales
+-- ADD (CLEAN_PRODUCTLINE STRING,
+--     CLEAN_PRICEEACH NUMBER);
+--
+-- UPDATE clean_sales c
+-- SET CLEAN_PRODUCTLINE = UPPER(TRIM(r.PRODUCTLINE)),
+--     CLEAN_PRICEEACH = COALESCE(r.PRICEEACH, 0)
+-- FROM raw_sales r
+-- WHERE c.ORDERNUMBER = r.ORDERNUMBER;
+--
+-- ---ADDING NEW COLUMNS TO THE CLEAN TABLE BY APPLYING BUSINESS LOGIC AND  EXPRESSIONS
+-- ALTER TABLE clean_sales
+-- ADD SALES_CATEGORY STRING,
+--     TOTAL_ORDER_VALUE NUMBER;
+--
+-- UPDATE clean_sales
+-- SET  TOTAL_ORDER_VALUE= CLEAN_QUANTITYORDERED * CLEAN_PRICEEACH,
+--      SALES_CATEGORY = (
+--             CASE 
+--              WHEN CLEAN_SALES>5000
+--                  THEN 'HIGH'
+--              WHEN CLEAN_SALES>1000
+--                     THEN 'MEDIUM'
+--                 ELSE 'LOW'
+--             END
+--         );
+--
+--
+-- SELECT * FROM clean_sales;
+-- SELECT * FROM raw_sales;
+--
+--
+-- ---AGGREGATE FUNCTIONS 
+-- SELECT CLEAN_COUNTRY, SUM(CLEAN_SALES) AS TOTAL_SALES
+-- FROM clean_sales
+-- GROUP BY CLEAN_COUNTRY
+-- HAVING TOTAL_SALES>100000;
+--
+--
+-- SELECT CLEAN_STATUS, COUNT(*) AS TOTAL_ORDERS
+-- FROM clean_sales
+-- GROUP BY CLEAN_STATUS;
+--
+-- SELECT CLEAN_COUNTRY, AVG(CLEAN_SALES) AS AVERAGE_SALES
+-- FROM clean_sales
+-- GROUP BY CLEAN_COUNTRY;
+--
+-- SELECT CLEAN_COUNTRY, COUNT(*) AS CUSTOMER_COUNT
+-- FROM clean_sales
+-- GROUP BY CLEAN_COUNTRY; 
+--
+-- SELECT 
+-- MIN(CLEAN_SALES) AS MINIMUM_SALE,
+-- MAX(CLEAN_SALES) AS MAXIMUM_SALE,
+-- AVG(CLEAN_SALES) AS AVERAGE_SALE
+-- FROM clean_sales;
+--
+--
+-- ---CREATE A NEW TABLE FOR JOINS 
+-- CREATE OR REPLACE TABLE customers AS
+-- SELECT CLEAN_CUSTOMER_NAME, ORDERNUMBER, CLEAN_COUNTRY
+-- FROM clean_sales
+-- WHERE CLEAN_COUNTRY!= 'USA';
+--
+-- ALTER TABLE customers
+-- ADD DEALSIZE STRING;
+--
+-- UPDATE customers c
+-- SET DEALSIZE= UPPER(TRIM(r.DEALSIZE))
+-- FROM raw_sales r
+-- WHERE c.ORDERNUMBER=r.ORDERNUMBER;
+--
+--
+-- SELECT * FROM customers;
+-- SELECT * FROM clean_sales;
+--
+-- ---INNER JOIN
+-- SELECT s.ORDERNUMBER, s.CLEAN_COUNTRY, CLEAN_SALES, DEALSIZE
+-- FROM clean_sales s
+-- JOIN customers c
+--     ON s.ORDERNUMBER = c.ORDERNUMBER;
+--
+-- ---LEFT OUTER JOIN
+-- SELECT s.ORDERNUMBER, s.CLEAN_COUNTRY, CLEAN_SALES, DEALSIZE
+-- FROM clean_sales s
+-- LEFT JOIN customers c
+--     ON s.ORDERNUMBER = c.ORDERNUMBER;
+--
+-- ---RIGHT OUTER JOIN
+-- SELECT s.ORDERNUMBER, s.CLEAN_COUNTRY, CLEAN_SALES, DEALSIZE
+-- FROM clean_sales s
+-- RIGHT JOIN customers c
+--     ON s.ORDERNUMBER = c.ORDERNUMBER;
+--
+-- ---FULL OUTER JOIN
+-- SELECT s.ORDERNUMBER, s.CLEAN_COUNTRY, CLEAN_SALES, DEALSIZE
+-- FROM clean_sales s
+-- FULL JOIN customers c
+--     ON s.ORDERNUMBER = c.ORDERNUMBER;
+--
+--
+-- ---WINDOWS FUNCTION - ORDER BY - RANKING FUNCTION
+--
+-- SELECT ORDERNUMBER,
+--        CLEAN_COUNTRY,
+--        CLEAN_SALES,
+--        AVG(CLEAN_SALES) OVER (
+--             PARTITION BY CLEAN_COUNTRY) AS AVG_SALES
+-- FROM clean_sales;        
+--
+--
+-- SELECT *
+-- FROM (
+--        SELECT ORDERNUMBER,
+--        CLEAN_COUNTRY,
+--        CLEAN_SALES,
+--        AVG(CLEAN_SALES) OVER (
+--             PARTITION BY CLEAN_COUNTRY) AS AVG_SALES
+--       FROM clean_sales
+-- )cs
+-- WHERE CLEAN_SALES>AVG_SALES;
+--
+-- ---QUERY TO FIND AVG(SALES) - SALES GROUPED BY COUNTRY
+-- SELECT CLEAN_COUNTRY,
+--        CLEAN_SALES,
+--        AVG(CLEAN_SALES) OVER (
+--        PARTITION BY CLEAN_COUNTRY
+--       ) - CLEAN_SALES AS AVG_DIFF
+-- FROM clean_sales;
+--
+-- ---ORDER BY INSIDE A WINDOW FUNCTION
+-- SELECT ORDERNUMBER,
+--        CLEAN_COUNTRY,
+--        CLEAN_SALES,
+--        SUM(CLEAN_SALES) OVER (
+--             ---PARTITION BY CAN BE OPTIONAL
+--             PARTITION BY CLEAN_COUNTRY
+--             ORDER BY CLEAN_SALES ASC
+--             ) AS SUM
+-- FROM clean_sales
+-- ORDER BY CLEAN_SALES ASC;  
+--
+-- ---ORDER BY INSIDE A RANKING FUNCTION
+-- SELECT ORDERNUMBER,
+--        CLEAN_COUNTRY,
+--        CLEAN_SALES,
+--         ROW_NUMBER() OVER (
+--             ---PARTITION BY CAN BE OPTIONAL
+--             PARTITION BY CLEAN_COUNTRY
+--             ORDER BY CLEAN_SALES ASC
+--             ) AS RANKING
+-- FROM clean_sales; 
+--
+-- ---CASE WHEN
+-- SELECT ORDERNUMBER,
+--        CLEAN_SALES,
+--        CASE 
+--             WHEN CLEAN_SALES>10000 THEN 'HIGH'
+--             WHEN CLEAN_SALES>5000 THEN 'MEDIUM'
+--             ELSE 'LOW'
+--         END AS SALES_CATEGORY
+-- FROM clean_sales;
+--
+-- ---NEW TABLE business_sales with Sales_Category and Region
+-- CREATE OR REPLACE TABLE business_sales AS 
+-- SELECT ORDERNUMBER,
+--        CLEAN_COUNTRY,
+--        CLEAN_SALES,
+--        CASE 
+--             WHEN CLEAN_SALES>10000 THEN 'HIGH'
+--             WHEN CLEAN_SALES>5000 THEN 'MEDIUM'
+--             ELSE 'LOW'
+--         END AS SALES_CATEGORY,
+--         CASE 
+--             WHEN CLEAN_COUNTRY IN ('USA','CANADA') THEN 'NORTH AMERICA'
+--             WHEN CLEAN_COUNTRY IN ('UK', 'FRANCE','GERMANY') THEN 'EUROPE'
+--             ELSE 'OTHER'
+--         END AS REGION
+--     FROM clean_sales;
+--
+-- SELECT * FROM business_sales;
+--
+-- SELECT * FROM clean_sales;
+-- DESCRIBE TABLE clean_sales;
+--
+--
+-- ---DATE FORMATTING
+-- ALTER TABLE clean_sales
+-- ADD FORMATTED_DATE DATE;
+--
+-- UPDATE clean_sales
+-- SET FORMATTED_DATE= TO_DATE(CLEAN_ORDER_DATE, 'MM/DD/YYYY HH:MI');
+--
+-- SELECT * FROM clean_sales;
+--
+-- ---EXTRACT YEAR/MONTH OR DAY
+-- CREATE OR REPLACE TABLE formatted_date AS 
+--     SELECT CLEAN_ORDER_DATE,
+--             FORMATTED_DATE,
+--             YEAR(FORMATTED_DATE) AS YEAR,
+--             MONTH(FORMATTED_DATE) AS MONTH,
+--             DAY(FORMATTED_DATE) AS DAY
+--     FROM clean_sales;
+--
+-- SELECT * FROM formatted_date;
+--
+-- ---TRY_TO_DATE
+-- INSERT INTO formatted_date
+-- (CLEAN_ORDER_DATE)
+-- VALUES('abc');
+--
+-- SELECT CLEAN_ORDER_DATE,
+--     TRY_TO_DATE(CLEAN_ORDER_DATE, 'MM/DD/YYYY HH:MI') AS NEW
+-- FROM formatted_date;
+--
+--
+-- ---CURRENT DATE 
+-- SELECT CURRENT_DATE();
+--
+--
+-- ---JSON DATA
+-- CREATE OR REPLACE TABLE RAW_JSON_DATA AS
+-- SELECT PARSE_JSON('
+-- {
+--   "order_id": 94821,
+--   "date": "2026-06-09",
+--   "customer": {
+--     "id": "C-4402",
+--     "name": "Sample Customer",
+--     "tier": "Gold"
+--   },
+--   "items": [
+--     {"sku": "PROD-101", "name": "Mechanical Keyboard", "price": 120},
+--     {"sku": "PROD-205", "name": "Ergonomic Mouse", "price": 80}
+--   ],
+--   "financials": {
+--     "subtotal": 200,
+--     "tax": 16,
+--     "total": 216
+--   }
+-- }
+-- ') AS json_data;
+--
+-- SELECT * FROM RAW_JSON_DATA;
+--
+-- ---QUERING JSON DATA
+-- SELECT json_data:order_id AS OD_ID FROM RAW_JSON_DATA;
+-- SELECT json_data:date FROM RAW_JSON_DATA;
+-- SELECT json_data:customer FROM RAW_JSON_DATA;
+-- SELECT json_data:customer.name FROM RAW_JSON_DATA;
+-- SELECT json_data:items FROM RAW_JSON_DATA;
+-- SELECT json_data:items[0] FROM RAW_JSON_DATA;
+-- SELECT json_data:items[1].name FROM RAW_JSON_DATA;
+-- SELECT json_data:items[1].price::INT FROM RAW_JSON_DATA;
+--
+--
+-- INSERT INTO RAW_JSON_DATA
+-- (json_data)
+-- SELECT PARSE_JSON(
+--     '{
+--          "customer":"Sample Customer",
+--          "country":"India",
+--          "sales":[1,2,3,4]
+--     }'
+-- );
+--
+-- ---FLATTEN JSON ARRAY
+-- SELECT 
+--     VALUE:sku::STRING AS SKU,
+--     VALUE:name::STRING AS NAME,
+--     VALUE:price::NUMBER AS PRICE
+-- FROM RAW_JSON_DATA,  ---COMMA IS MANDATORY AFTER 'FROM CLAUSE' TO START A 'FLATTEN CLAUSE'
+-- LATERAL FLATTEN (input => JSON_DATA:items);
+--
+--
+-- ---STREAMS
+-- CREATE OR REPLACE STREAM sales_stream
+-- ON TABLE clean_sales;
+--
+-- SHOW STREAMS;
+--
+-- SELECT * FROM sales_stream;
+--
+-- INSERT INTO clean_sales
+-- SELECT * FROM clean_sales
+-- LIMIT 3;
+--
+--
+-- SELECT COUNT(*) FROM clean_sales;
+--
+-- SELECT * FROM sales_stream;
+-- SELECT * FROM clean_sales;
+--
+-- UPDATE clean_sales
+-- SET CLEAN_SALES=2872
+-- WHERE ORDERNUMBER=10107;
+--
+-- SELECT * FROM sales_stream;
+--
+-- ---NEW TABLE FOR TASK
+-- CREATE OR REPLACE TABLE incremental_clean_sales(
+-- ORDERNUMBER NUMBER,
+-- CLEAN_CUSTOMER_NAME STRING,
+-- CLEAN_COUNTRY STRING,
+-- CLEAN_SALES NUMBER,
+-- CLEAN_QUANTITYORDERED NUMBER,
+-- CLEAN_STATUS STRING,
+-- CLEAN_ORDER_DATE VARCHAR,
+-- CLEAN_PRODUCTLINE STRING,
+-- CLEAN_PRICEEACH NUMBER,
+-- SALES_CATEGORY STRING,
+-- TOTAL_ORDER_VALUE NUMBER,
+-- FORMATTED_DATE DATE
+-- );
+--
+-- ---MANUALLY EMPTYING EXISITING STREAM BY LOADING DATA IN IT INTO ANOTHER TABLE (WITHOUT TASK)
+-- INSERT INTO incremental_clean_sales
+-- (ORDERNUMBER)
+--
+-- SELECT 
+--     ORDERNUMBER,
+-- FROM sales_stream
+-- WHERE METADATA$ACTION = 'INSERT';
+--
+-- SELECT * FROM incremental_clean_sales;
+--
+-- ---INSERTING ROW INTO clean_sales INORDER RO UPDATE sales_stream
+-- INSERT INTO clean_sales
+-- (ORDERNUMBER)
+-- VALUES(2500);
+--
+--
+-- ---TASK
+--
+-- ---GRANT PERMISSION TO SYSADMIN
+-- USE ROLE ACCOUNTADMIN;
+--
+-- -- Force ownership to SYSADMIN
+-- ---GRANT OWNERSHIP ON TASK load_incremental_sales TO ROLE SYSADMIN COPY CURRENT GRANTS;
+--
+-- -- Ensure SYSADMIN can execute tasks and use the warehouse
+-- GRANT EXECUTE TASK ON ACCOUNT TO ROLE SYSADMIN;
+-- GRANT USAGE ON WAREHOUSE COMPUTE_WH TO ROLE SYSADMIN;
+--
+-- USE ROLE SYSADMIN;
+--
+-- CREATE OR REPLACE TASK SALES_PROJECT.PUBLIC.load_incremental_sales
+-- WAREHOUSE= COMPUTE_WH
+-- SCHEDULE= '1 MINUTE'
+-- WHEN SYSTEM$STREAM_HAS_DATA('SALES_PROJECT.PUBLIC.sales_stream') -- Prevents empty credit burn
+-- AS
+--
+-- INSERT INTO SALES_PROJECT.PUBLIC.incremental_clean_sales
+-- (ORDERNUMBER)
+--
+-- SELECT ORDERNUMBER
+-- FROM SALES_PROJECT.PUBLIC.sales_stream
+-- WHERE METADATA$ACTION = 'INSERT';
+--
+-- ALTER TASK SALES_PROJECT.PUBLIC.load_incremental_sales RESUME;
+--
+-- SHOW TASKS;
+--
+-- ---CHECK TASK HISTORY
+-- SELECT * 
+-- FROM TABLE(INFORMATION_SCHEMA.TASK_HISTORY
+--         ( TASK_NAME=>'load_incremental_sales'
+--             )
+--         );
+--
+-- ---VALIDATING ELT
+-- SELECT COUNT(*) FROM SALES_PROJECT.PUBLIC.raw_sales;
+-- SELECT COUNT(*) FROM SALES_PROJECT.PUBLIC.clean_sales;
+--
+-- SELECT MAX(sales), MIN(sales) FROM SALES_PROJECT.PUBLIC.raw_sales;
+-- SELECT MAX(clean_sales), MIN(clean_sales) FROM SALES_PROJECT.PUBLIC.clean_sales;
+--
+-- SELECT COUNT(DISTINCT(ORDERNUMBER)) FROM SALES_PROJECT.PUBLIC.raw_sales;
+-- SELECT COUNT(DISTINCT(ORDERNUMBER)) FROM SALES_PROJECT.PUBLIC.clean_sales;
+--
+-- SELECT COUNT(*) FROM SALES_PROJECT.PUBLIC.raw_sales
+-- WHERE ORDERNUMBER IS NULL;
+--
+-- SELECT COUNT(*) FROM SALES_PROJECT.PUBLIC.clean_sales
+-- WHERE ORDERNUMBER IS NULL;
+--
+-- SELECT * FROM SALES_PROJECT.PUBLIC.clean_sales
+-- LIMIT 15 OFFSET 1337; 
+--
+--
+-- ---WORKING WITH BAD DATA
+-- INSERT INTO SALES_PROJECT.PUBLIC.clean_sales
+-- SELECT * FROM SALES_PROJECT.PUBLIC.clean_sales
+-- LIMIT 5;
+--
+-- ---DUPLICATE VALUES USING GROUP BY
+-- SELECT *
+-- FROM(
+--         SELECT ORDERNUMBER, COUNT(*) AS COUNTT
+--         FROM SALES_PROJECT.PUBLIC.clean_sales
+--         GROUP BY ORDERNUMBER
+--     )t
+-- WHERE COUNTT>1;
+--
+-- ---DUPLICATE VALUES USING RANKING FUNCTIONS
+-- SELECT *
+-- FROM (
+--         SELECT *,
+--         ROW_NUMBER()OVER(
+--         PARTITION BY ORDERNUMBER
+--         ORDER BY ORDERNUMBER
+--         ) AS rn
+--         FROM SALES_PROJECT.PUBLIC.clean_sales
+-- )t
+-- WHERE rn>1;
+--
+-- ---NULL VALUES 
+-- SELECT * FROM clean_sales
+-- WHERE CLEAN_SALES IS NULL;
+--
+--
+-- UPDATE clean_sales
+-- SET CLEAN_SALES=COALESCE(CLEAN_SALES,0);
+--
+-- SELECT * FROM clean_sales;
+--
+--
+-- ---QUERY HISTORY
+-- SELECT *
+-- FROM TABLE(INFORMATION_SCHEMA.QUERY_HISTORY());
+--
+-- SELECT *
+-- FROM TABLE(INFORMATION_SCHEMA.QUERY_HISTORY(
+--           RESULT_LIMIT=>20
+--         )
+-- )
+-- WHERE QUERY_TEXT LIKE '%INSERT%';    ---CASE SENSITIVE
+-- WHERE QUERY_TEXT ILIKE '%INSERT%';   ---CASE INSENSITIVE
+--
+-- ---TASK HISTORY
+-- SELECT * 
+-- FROM TABLE(INFORMATION_SCHEMA.TASK_HISTORY(
+--         TASK_NAME=>'load_incremental_sales',
+--         RESULT_LIMIT=>10
+--     )   
+-- );
+--
+-- SELECT * FROM incremental_clean_sales
+-- WHERE STATE IS NULL;
+--
+-- SHOW WAREHOUSES;
+-- SELECT CURRENT_WAREHOUSE();
+-- SELECT CURRENT_ROLE();
+-- SELECT CURRENT_DATABASE();
+-- SELECT CURRENT_SCHEMA();
+--
+-- ALTER WAREHOUSE COMPUTE_WH 
+-- SUSPEND;
+--
+-- ALTER WAREHOUSE COMPANY_WH
+-- RESUME;
+--
+--
+-- SELECT * FROM CLEAN_SALES;
+--
+-- ---MODYFYING EXISTING SQL 
+-- ALTER TABLE clean_sales
+-- ADD PROFIT NUMBER,
+--     ORDER_CATEGORY STRING;
+--
+-- UPDATE clean_sales
+-- SET PROFIT = CLEAN_SALES * 0.20,
+--     ORDER_CATEGORY = 
+--          CASE
+--                 WHEN TOTAL_ORDER_VALUE>=3000
+--                     THEN 'LARGE ORDER'
+--                 ELSE 'SMALL ORDER'
+--          END
+-- ;
+--
+--
+-- SELECT
+--     ORDERNUMBER,
+--     CLEAN_COUNTRY,
+--     CLEAN_SALES,
+--     RANK() OVER (
+--         PARTITION BY CLEAN_COUNTRY
+--         ORDER BY CLEAN_SALES DESC
+--     ) AS RANKING,
+--     SUM(CLEAN_SALES) OVER (
+--         PARTITION BY CLEAN_COUNTRY
+--     )AS TOTAL_SALES
+-- FROM CLEAN_SALES
+-- WHERE CLEAN_COUNTRY IN ('USA', 'UK', 'JAPAN');
+--
+--
+-- SELECT $1 
+-- FROM @sales_stage/sales_data_sample.csv
+-- (
+--     FILE_FORMAT => 'sales_file_format'
+-- );
+--
+-- SELECT CURRENT_USER(), CURRENT_role();
+--
+--
+-- SELECT CURRENT_VERSION();

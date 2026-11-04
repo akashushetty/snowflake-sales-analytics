@@ -1,0 +1,27 @@
+# Credentials and environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p8
+*credentials*.json
+*secrets*.json
+# Source datasets, including customer PII, are not bundled
+/data/*.csv
+/data/*.xlsx
+/data/*.json
+*.csv
+*.xlsx
+# Logs, exports and local state
+.vscode/
+.idea/
+__pycache__/
+.venv/
+venv/
+*.log
+*.zip
+outputs/
+exports/
+private/
+internal/
