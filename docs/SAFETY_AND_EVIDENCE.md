@@ -1,25 +1,21 @@
-# Sales source audit, scope, and evidence
+# Sales Analytics — Technical Notes
 
-## Source reviewed
-- `Sales_data_project.zip` contained **one** SQL file (`Sales_data_project.sql`). No Python program, original retail CSV, environment file, or actual Snowflake connection parameters were supplied within this ZIP.
-- This repository is prepared from that source. The original ZIP was not modified.
+This project uses a retail sales CSV and Snowflake SQL for ingestion, data cleaning, analytics, and separate incremental-processing exercises.
 
-## Publication edits
-- Fully comment out the historical SQL so its `CREATE OR REPLACE DATABASE`, account-level grants, Task RESUME, and warehouse ALTER commands cannot run if the file is selected as a whole.
-- Replace a personal name occurring inside an illustrative JSON object with `Sample Customer`.
-- Remove unrelated trailing Wing file-format/stage commands from the public historical archive.
-- Add a read-only analytics example and a separate non-destructive initial setup example. These new examples are **not live-retested**.
-- No source retail CSV is included; licensing and customer-data rights must be checked by the owner before uploading any dataset.
+## What was practiced
 
-## Evidence boundaries
-- Stage/COPY, RAW/CLEAN transformations, CASE region logic, joins, windows, and date exercises are present in the original SQL worksheet.
-- JSON parsing and flattening are separate in the worksheet and not part of an independently verified automated load.
-- Private exported Task History examined for resume review showed `SALES_PROJECT.LOAD_INCREMENTAL_SALES` succeeded on **2026-09-01** with an **INSERT of 2 rows**. It was a warehouse-backed Task.
-- No source files establish a fully automated production pipeline, Snowpipe, serverless Tasks, dbt, Airflow, AWS S3 integration, enterprise-scale performance, or verified idempotent MERGE.
-- No fresh Snowflake run was performed in preparing this GitHub kit.
+- Loaded a 25-column CSV through an internal stage and `COPY INTO`, using an ISO-8859-1 CSV file format.
+- Worked with `RAW_SALES`, `CLEAN_SALES`, text cleanup, `COALESCE`, `CASE`, date functions, joins, aggregations, and window functions.
+- Tested a warehouse-backed scheduled Stream/Task INSERT that added two order IDs to an incremental target.
+- Explored JSON with `PARSE_JSON`, `VARIANT`, and `LATERAL FLATTEN` in a separate exercise.
 
-## Review notes from static SQL inspection
-- Order numbers may repeat across order line items; the saved worksheet includes joins and updates by `ORDERNUMBER`. Those joins can multiply rows if the keys are not unique.
-- The source references `GRANT EXECUTE TASK` and `GRANT OWNERSHIP` as learning experiments, which require elevated permissions and must not be copied blindly.
-- The historical worksheet includes a mismatched column query, duplicated `WHERE` clauses, and a stray comma in a SELECT. Treat it as an experimental lab notebook rather than polished runnable code.
-- Historical `CREATE OR REPLACE` operations could delete objects if executed outside the fully commented archival version.
+## Current limitations
+
+- The original retail CSV is not included. See [dataset notes](../data/README.md) to obtain and check a permitted copy.
+- The original development worksheet is preserved entirely as comments so it cannot be executed accidentally. The separate setup and analytics examples have not yet been retested together.
+- Several historical statements were exploratory, may depend on earlier steps, and should not be treated as a complete setup-to-output script.
+- Some queries join on `ORDERNUMBER`, which can appear on more than one order line. These joins may multiply records unless the correct line-item key is used.
+- One historical transformation filtered out rows with a NULL `STATE`. That was a particular exercise choice, not a general data-cleaning rule.
+- The historical worksheet includes account grants, warehouse changes, and `CREATE OR REPLACE` commands. It is **reference material, not a script to run wholesale**.
+
+Streams/Tasks and JSON analysis were practiced separately from the main sales transformation exercise. The repository does not demonstrate a complete production automation workflow.
